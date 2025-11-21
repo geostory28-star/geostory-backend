@@ -2,16 +2,20 @@ import admin from "../lib/firebaseAdmin.js";
 
 export default async function handler(req, res) {
   try {
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "Only POST allowed" });
+    }
+
     const { type, fromUid, fromName, fromAvatar, toUid } = req.body;
 
     if (!toUid) {
       return res.status(400).json({ error: "Missing toUid" });
     }
 
-    // Get the receiver's stored token
+    // FIXED PATH: Fetch token from "tokens/" instead of "notificationTokens/"
     const snap = await admin
       .database()
-      .ref("notificationTokens/" + toUid)
+      .ref("tokens/" + toUid)
       .once("value");
 
     if (!snap.exists()) {
@@ -20,13 +24,16 @@ export default async function handler(req, res) {
 
     const token = snap.val().token;
 
-    // Create a proper notification message
+    // Build notification
     let title = "";
     let body = "";
 
     if (type === "follow") {
       title = "New Follower!";
       body = `${fromName} started following you`;
+    } else {
+      title = "Notification";
+      body = "You have a new update";
     }
 
     await admin.messaging().send({
